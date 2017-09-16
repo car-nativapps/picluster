@@ -25,7 +25,7 @@ const app = express();
 
 app.use(bodyParser());
 app.use('/assets', express.static(path.join(__dirname, 'assets'), {maxage: '48h'}));
-app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')), {maxage: '48h'}));
+app.use('/node_modules', express.static(path.join(__dirname, 'node_modules'), {maxage: '48h'}));
 
 const upload = multer({
   dest: '../'
