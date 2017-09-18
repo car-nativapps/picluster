@@ -162,7 +162,7 @@ if (config.vip_ip && config.vip) {
             exec(ip_delete_command).then(send_ping).catch(send_ping);
           } else {
             vip_cloud_ip('remove');
-            exec(send_ping).catch(send_ping)
+            exec(send_ping).catch(send_ping);
           }
           vip_ping_time = config.vip[i].vip_ping_time;
         });
