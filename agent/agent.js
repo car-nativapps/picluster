@@ -159,9 +159,11 @@ if (config.vip_ip && config.vip) {
           if (!config.vip_provider && !config.vip_api_token && !instance) {
             ip_add_command = 'ip addr add ' + config.vip_ip + '/32 dev ' + vip_eth_device;
             ip_delete_command = 'ip addr del ' + config.vip_ip + '/32 dev ' + vip_eth_device;
+            vip_cloud_ip('remove');
+          } else {
+            exec(ip_delete_command).then(send_ping).catch(send_ping);
           }
           vip_ping_time = config.vip[i].vip_ping_time;
-          exec(ip_delete_command).then(send_ping).catch(send_ping);
         });
       });
     });
