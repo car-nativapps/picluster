@@ -156,7 +156,7 @@ if (config.vip_ip && config.vip) {
             }
           }
           const vip_eth_device = config.vip[i].vip_eth_device;
-          if (!config.vip_provider && !config.vip_api_token && instance) {
+          if (!config.vip_provider && !config.vip_api_token && !instance) {
             ip_add_command = 'ip addr add ' + config.vip_ip + '/32 dev ' + vip_eth_device;
             ip_delete_command = 'ip addr del ' + config.vip_ip + '/32 dev ' + vip_eth_device;
           }
