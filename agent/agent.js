@@ -13,6 +13,7 @@ const async = require('async');
 const exec = require('child-process-promise').exec;
 const sysinfo = require('systeminformation');
 
+let instance = '';
 const config = process.env.PICLUSTER_CONFIG ? JSON.parse(fs.readFileSync(process.env.PICLUSTER_CONFIG, 'utf8')) : JSON.parse(fs.readFileSync('../config.json', 'utf8'));
 const app = express();
 
@@ -149,14 +150,56 @@ if (config.vip_ip && config.vip) {
             return;
           }
           vip_slave = config.vip[i].slave;
+          if (config.vip_provider && config.vip_api_token) {
+            if (config.vip[i].instance_id) {
+              instance = config.vip[i].instance_id;
+            }
+          }
           const vip_eth_device = config.vip[i].vip_eth_device;
-          ip_add_command = 'ip addr add ' + config.vip_ip + '/32 dev ' + vip_eth_device;
-          ip_delete_command = 'ip addr del ' + config.vip_ip + '/32 dev ' + vip_eth_device;
+          if (!config.vip_provider && !config.vip_api_token && instance) {
+            ip_add_command = 'ip addr add ' + config.vip_ip + '/32 dev ' + vip_eth_device;
+            ip_delete_command = 'ip addr del ' + config.vip_ip + '/32 dev ' + vip_eth_device;
+          }
           vip_ping_time = config.vip[i].vip_ping_time;
           exec(ip_delete_command).then(send_ping).catch(send_ping);
         });
       });
     });
+  });
+}
+
+function vip_cloud_ip(operation) {
+  let url = '';
+  let body = JSON.stringify({
+    type: 'assign',
+    droplet_id: instance
+  });
+
+  if (operation.indexOf('remove') > -1) {
+    body = JSON.stringify({
+      type: 'assign'
+    });
+  }
+
+  if (config.vip_provider.indexOf('digitalocean') > -1) {
+    url = 'https://api.digitalocean.com/v2/floating_ips/' + config.vip_ip + '/actions';
+  }
+
+  const options = {
+    url,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + config.vip_api_token,
+      'Content-Length': body.length
+    },
+    body
+  };
+
+  request(options, error => {
+    if (error) {
+      console.log('\nError:' + error);
+    }
   });
 }
 
@@ -180,8 +223,12 @@ function send_ping() {
     request(options, (error, response, body) => {
       let found_vip = false;
       if (error) {
-        const cmd = ip_add_command;
-        exec(cmd).then(noop).catch(noop);
+        if (config.vip_provider && config.vip_api_token && instance) {
+          vip_cloud_ip('add');
+        } else {
+          const cmd = ip_add_command;
+          exec(cmd).then(noop).catch(noop);
+        }
       } else {
         const interfaces = require('os').networkInterfaces();
         Object.keys(interfaces).forEach(devName => {
@@ -196,17 +243,25 @@ function send_ping() {
 
         if (json_object.vip_detected === 'false' && found_vip === false) {
           console.log('\nVIP not detected on either machine. Bringing up the VIP on this host.');
-          const cmd = ip_add_command;
-          exec(cmd).catch(err => {
-            console.log(err);
-          });
+          if (config.vip_provider && config.vip_api_token && instance) {
+            vip_cloud_ip('add');
+          } else {
+            const cmd = ip_add_command;
+            exec(cmd).catch(err => {
+              console.log(err);
+            });
+          }
         }
         if ((json_object.vip_detected === 'true' && found_vip === true)) {
           console.log('\nVIP detected on boths hosts! Stopping the VIP on this host.');
-          const cmd = ip_delete_command;
-          exec(cmd).catch(err => {
-            console.log(err);
-          });
+          if (config.vip_provider && config.vip_api_token && instance) {
+            vip_cloud_ip('remove');
+          } else {
+            const cmd = ip_delete_command;
+            exec(cmd).catch(err => {
+              console.log(err);
+            });
+          }
         }
       }
     });
